@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.1: Windows Codex CLI Fallback
+
+- The Codex CLI fallback now starts on Windows. When npm installs Codex behind a `codex.cmd` shim that a shell-free `spawn` cannot launch, the extension resolves the native `codex.exe` from PATH or from the npm platform package and starts it directly, so fallback quota stays available when the primary endpoint fails. Non-Windows platforms keep plain PATH lookup, and the helper window is hidden.
+- Added Linux and Windows GitHub Actions validation for the full release check suite.
+
 ## 0.13.0: OpenAI Subscription Provider Support
 
 - Added `openai` alongside `openai-codex` for `/fast`, request priority adaptation, terminal status and the optional Telegram row. Fast preferences remain isolated by provider/model, including identical model IDs. Both providers share the existing Codex subscription quota stream. Pi subscription OAuth under `openai` now fetches quota directly without requiring the legacy provider; `openai` API-key auth is skipped and the Codex CLI fallback is preserved.

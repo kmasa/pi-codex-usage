@@ -1,5 +1,7 @@
 /** Domain: quota transport. Owns: Pi auth, Codex app-server fallback and errors. Excludes: shared leadership and UI. */
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { assertObject, errorMessage, isOpenAICodexModel, normalizeAppServerResponse, normalizeBackendPayload, parseJsonObject, selectUsageSnapshot, type AppServerRateLimitResponse, type CodexUsageModel, type CodexUsageReport, type RateLimitStatusPayload, type UsageQueryError } from "./usage.ts";
@@ -196,6 +198,47 @@ async function queryViaCodexAppServer(
   }
 }
 
+const WINDOWS_CODEX_TARGETS: Record<string, string> = {
+  x64: "x86_64-pc-windows-msvc",
+  arm64: "aarch64-pc-windows-msvc",
+};
+
+/**
+ * npm installs Codex behind a `codex.cmd` shim that a shell-free `spawn` cannot
+ * launch, so on Windows resolve the native executable used by the npm platform
+ * package. Other platforms keep plain PATH lookup. Launching the native binary
+ * attaches disposal to the app-server process instead of a shell or Node shim.
+ */
+export function resolveCodexExecutable(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  arch: string = process.arch,
+): string {
+  if (platform !== "win32") return "codex";
+  const target = WINDOWS_CODEX_TARGETS[arch];
+  const path = Object.entries(env).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
+  for (const entry of path.split(";")) {
+    // Ignore empty entries rather than searching the current working directory.
+    const directory = entry.replace(/^"(.*)"$/, "$1");
+    if (!directory) continue;
+    const direct = join(directory, "codex.exe");
+    if (existsSync(direct)) return direct;
+    // A `.cmd` entry means an npm install; its native binary lives in the platform package.
+    if (!target || !existsSync(join(directory, "codex.cmd"))) continue;
+    const packageDirs = [
+      join(directory, "node_modules", "@openai", "codex", "node_modules", "@openai", `codex-win32-${arch}`),
+      join(directory, "node_modules", "@openai", `codex-win32-${arch}`),
+    ];
+    for (const packageDir of packageDirs) {
+      const binary = join(packageDir, "vendor", target, "bin", "codex.exe");
+      if (existsSync(binary)) return binary;
+    }
+  }
+  throw new Error(
+    "Could not find a native Codex executable on PATH. Install Codex with npm install -g @openai/codex@latest, then restart Pi so it inherits the updated PATH.",
+  );
+}
+
 class CodexAppServerClient {
   private child?: ChildProcessWithoutNullStreams;
   private nextId = 1;
@@ -213,8 +256,9 @@ class CodexAppServerClient {
     if (this.startPromise) return this.startPromise;
 
     this.startPromise = new Promise((resolve, reject) => {
-      const child = spawn("codex", ["app-server", "--listen", "stdio://"], {
+      const child = spawn(resolveCodexExecutable(), ["app-server", "--listen", "stdio://"], {
         stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
       });
       this.child = child;
 
