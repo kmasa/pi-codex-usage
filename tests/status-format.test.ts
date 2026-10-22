@@ -137,58 +137,54 @@ test("formats counter-moving loading markers for both quota windows", () => {
   assert.equal(formatCodexUsageLoadingBar(Number.NaN), "▘⠀⠀⠀⠀⠀⠀⠀⠀▗");
 });
 
-test("keeps positive remaining quota visible at the empty edge", () => {
-  assert.equal(
-    formatCodexUsageBar({
-      snapshots: [
-        {
-          limitId: "codex",
-          primary: { usedPercent: 100 },
-          secondary: { usedPercent: 100 },
-        },
-      ],
-    }),
-    "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-  );
+test("aligns empty quota halves and shared error background with rounded zero percent", () => {
+  for (const [usedPercent, displayedRemaining] of [[98, 2], [99, 1], [99.5, 1], [99.51, 0], [99.9, 0], [100, 0], [101, 0]]) {
+    const exhausted = displayedRemaining === 0;
+    const background = exhausted ? "toolErrorBg" : "userMessageBg";
+    assert.equal(
+      formatCodexUsageStatusValue({ snapshots: [{ limitId: "codex", primary: { usedPercent } }] }),
+      `${displayedRemaining}%`,
+    );
+    for (const window of ["primary", "secondary"] as const) {
+      const report = { snapshots: [{
+        limitId: "codex",
+        primary: { usedPercent: 50 },
+        secondary: { usedPercent: 50 },
+        [window]: { usedPercent },
+      }] };
+      const bar = window === "primary"
+        ? `${exhausted ? "▄" : "▙"}▄▄▄▄⠀⠀⠀⠀⠀`
+        : `${exhausted ? "▀" : "▛"}▀▀▀▀⠀⠀⠀⠀⠀`;
+      assert.equal(formatCodexUsageBar(report), bar);
+      assert.equal(
+        formatCodexUsageStatusline(report, testCtx),
+        `<fg:accent>codex</fg> <bg:${background}><fg:dim>${bar}</fg></bg>`,
+      );
+    }
+    assert.equal(
+      formatCodexUsageBar({ snapshots: [{
+        limitId: "codex",
+        primary: { usedPercent },
+        secondary: { usedPercent },
+      }] }),
+      exhausted ? "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀" : "▌⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+    );
+  }
+});
 
-  assert.equal(
-    formatCodexUsageBar({
-      snapshots: [
-        {
-          limitId: "codex",
-          primary: { usedPercent: 99.9 },
-          secondary: { usedPercent: 100 },
-        },
-      ],
-    }),
-    "▘⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-  );
-
-  assert.equal(
-    formatCodexUsageBar({
-      snapshots: [
-        {
-          limitId: "codex",
-          primary: { usedPercent: 98 },
-          secondary: { usedPercent: 98 },
-        },
-      ],
-    }),
-    "▌⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-  );
-
-  assert.equal(
-    formatCodexUsageBar({
-      snapshots: [
-        {
-          limitId: "codex",
-          primary: { usedPercent: 2 },
-          secondary: { usedPercent: 2 },
-        },
-      ],
-    }),
-    "██████████",
-  );
+test("rounds near-full quota to the nearest of twenty steps without an error background", () => {
+  for (const [usedPercent, bar] of [[0, "██████████"], [1, "██████████"], [2.5, "██████████"], [2.51, "█████████▌"]] as const) {
+    const report = { snapshots: [{
+      limitId: "codex",
+      primary: { usedPercent },
+      secondary: { usedPercent },
+    }] };
+    assert.equal(formatCodexUsageBar(report), bar);
+    assert.equal(
+      formatCodexUsageStatusline(report, testCtx),
+      `<fg:accent>codex</fg> <bg:userMessageBg><fg:dim>${bar}</fg></bg>`,
+    );
+  }
 });
 
 test("formats weekly reset countdown by remaining duration bucket", () => {
@@ -426,6 +422,17 @@ test("formats exhausted primary windows with the full dual bar", () => {
     ),
     "▄▄▄▄▄⠀⠀⠀⠀⠀ 7d",
   );
+});
+
+test("uses the exhausted countdown and redraw boundary for rounded zero percent", () => {
+  const now = Date.parse("2026-05-28T00:00:00.000Z");
+  const report = { snapshots: [{
+    limitId: "codex",
+    primary: { usedPercent: 99.9, resetAt: now + 59 * secondMs + 250 },
+    secondary: { usedPercent: 50, resetAt: now + 7 * dayMs },
+  }] };
+  assert.equal(formatCodexUsageStatusValue(report, now), "▄▄▄▄▄⠀⠀⠀⠀⠀ 59s/7d");
+  assert.equal(nextResetCountdownDelayMs(report, now), 251);
 });
 
 test("schedules exhausted primary countdown redraws by the nearest reset label", () => {

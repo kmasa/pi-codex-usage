@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.2: Empty Quota Bar Hotfix
+
+- Aligned quota bars with rounded remaining percentages: when either window rounds to `0%`, its final segment disappears and the whole dual bar uses the error background, while the other half retains its quota. The 5-hour reset countdown follows the same zero boundary; near-full quota still rounds to the nearest 5% step.
+- Release verification now tolerates up to approximately 30 minutes of npm registry processing before checking the published package identity and creating the GitHub Release.
+
 ## 0.13.1: Windows Codex CLI Fallback
 
 - The Codex CLI fallback now starts on Windows. When npm installs Codex behind a `codex.cmd` shim that a shell-free `spawn` cannot launch, the extension resolves the native `codex.exe` from PATH or from the npm platform package and starts it directly, so fallback quota stays available when the primary endpoint fails. Non-Windows platforms keep plain PATH lookup, and the helper window is hidden.

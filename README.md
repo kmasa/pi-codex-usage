@@ -103,7 +103,7 @@ When OpenAI returns only the weekly window, the status shows the exact rounded r
 codex 67% 7d
 ```
 
-When both windows exist, the ten-character bar encodes two twenty-step limits at once: the top quadrants show the 5-hour limit and the bottom quadrants show the weekly limit, with each step representing 5%. If either quota window is exhausted, the bar keeps its shape but switches to the error background color.
+When both windows exist, the ten-character bar encodes two twenty-step limits at once: the top quadrants show the 5-hour limit and the bottom quadrants show the weekly limit, with each step representing 5%. When either window's remaining percentage rounds to `0%`, that half becomes completely empty and the entire dual bar switches to the error background color; the other half still shows its remaining quota.
 
 Before the first usable Codex report arrives, two half-height markers move through the same fixed-width themed bar. The upper 5-hour marker travels opposite the lower weekly marker; both reverse smoothly at the ends, and each loader run randomly starts from one of the two mirrored endpoint phases. Their motion distinguishes loading from 100% remaining quota while preserving the normal bar background. A first report claiming both windows are completely unused is treated as provisional for 15 seconds and retried every second by the refreshing instance before it is published, because providers can briefly emit zeroed windows while initializing. Once a usable report exists, refresh requests preserve that last good bar.
 
