@@ -158,7 +158,7 @@ test("aligns empty quota halves and shared error background with rounded zero pe
       assert.equal(formatCodexUsageBar(report), bar);
       assert.equal(
         formatCodexUsageStatusline(report, testCtx),
-        `<fg:accent>codex</fg> <bg:${background}><fg:dim>${bar}</fg></bg>`,
+        `<fg:accent>codex</fg> <fg:dim>${window === "primary" ? `5h ${displayedRemaining}% · 7d 50%` : `5h 50% · 7d ${displayedRemaining}%`}</fg>`,
       );
     }
     assert.equal(
@@ -182,7 +182,7 @@ test("rounds near-full quota to the nearest of twenty steps without an error bac
     assert.equal(formatCodexUsageBar(report), bar);
     assert.equal(
       formatCodexUsageStatusline(report, testCtx),
-      `<fg:accent>codex</fg> <bg:userMessageBg><fg:dim>${bar}</fg></bg>`,
+      `<fg:accent>codex</fg> <fg:dim>5h ${Math.round(100 - usedPercent)}% · 7d ${Math.round(100 - usedPercent)}%</fg>`,
     );
   }
 });
@@ -289,7 +289,7 @@ test("uses the subdued bar background while keeping the countdown outside it", (
         },
         testCtx,
       ),
-      "<fg:accent>codex</fg> <bg:userMessageBg><fg:dim>██████████</fg></bg> <fg:dim>6d</fg>",
+      "<fg:accent>codex</fg> <fg:dim>5h 100% · 7d 100% (6d)</fg>",
     );
   } finally {
     Date.now = originalDateNow;
@@ -314,7 +314,7 @@ test("uses an error background when either quota window is exhausted", () => {
         },
         testCtx,
       ),
-      "<fg:accent>codex</fg> <bg:toolErrorBg><fg:dim>▄▄▄▄▄⠀⠀⠀⠀⠀</fg></bg> <fg:dim>5h/7d</fg>",
+      "<fg:accent>codex</fg> <fg:dim>5h 0% (5h) · 7d 50% (7d)</fg>",
     );
 
     assert.equal(
@@ -330,7 +330,7 @@ test("uses an error background when either quota window is exhausted", () => {
         },
         testCtx,
       ),
-      "<fg:accent>codex</fg> <bg:toolErrorBg><fg:dim>▀▀▀▀▀⠀⠀⠀⠀⠀</fg></bg> <fg:dim>7d</fg>",
+      "<fg:accent>codex</fg> <fg:dim>5h 50% · 7d 0% (7d)</fg>",
     );
   } finally {
     Date.now = originalDateNow;
@@ -362,10 +362,10 @@ test("all Codex models share the primary quota and codex status label", () => {
     }],
   };
   for (const model of [codexModel, otherCodexModel]) {
-    assert.equal(formatCodexUsageStatusValue(report, model, now), "█████⠀⠀⠀⠀⠀");
+    assert.equal(formatCodexUsageStatusValue(report, model, now), "5h 50% · 7d 50%");
     assert.equal(
       formatCodexUsageStatusline(report, testCtx, model),
-      "<fg:accent>codex</fg> <bg:userMessageBg><fg:dim>█████⠀⠀⠀⠀⠀</fg></bg>",
+      "<fg:accent>codex</fg> <fg:dim>5h 50% · 7d 50%</fg>",
     );
   }
 });
@@ -385,7 +385,7 @@ test("formats reusable compact Codex status values", () => {
       },
       now,
     ),
-    "▀▀▀▀▀⠀⠀⠀⠀⠀ 23h",
+    "5h 50% · 7d 0% (23h)",
   );
 });
 
@@ -404,7 +404,7 @@ test("formats exhausted primary windows with the full dual bar", () => {
       },
       now,
     ),
-    "▄▄▄▄▄⠀⠀⠀⠀⠀ 5h/7d",
+    "5h 0% (5h) · 7d 50% (7d)",
   );
 
   assert.equal(
@@ -420,7 +420,7 @@ test("formats exhausted primary windows with the full dual bar", () => {
       },
       now,
     ),
-    "▄▄▄▄▄⠀⠀⠀⠀⠀ 7d",
+    "5h 0% · 7d 50% (7d)",
   );
 });
 
@@ -431,7 +431,14 @@ test("uses the exhausted countdown and redraw boundary for rounded zero percent"
     primary: { usedPercent: 99.9, resetAt: now + 59 * secondMs + 250 },
     secondary: { usedPercent: 50, resetAt: now + 7 * dayMs },
   }] };
-  assert.equal(formatCodexUsageStatusValue(report, now), "▄▄▄▄▄⠀⠀⠀⠀⠀ 59s/7d");
+  assert.equal(formatCodexUsageStatusValue(report, now), "5h 0% (59s) · 7d 50% (7d)");
+  assert.equal(nextResetCountdownDelayMs(report, now), 251);
+});
+
+test("schedules both countdowns even when the 5-hour window is not exhausted", () => {
+  const now = Date.parse("2026-05-28T00:00:00.000Z");
+  const report = { snapshots: [{ limitId: "codex", primary: { usedPercent: 20, resetAt: now + 59 * secondMs + 250 }, secondary: { usedPercent: 35, resetAt: now + 7 * dayMs } }] };
+  assert.equal(formatCodexUsageStatusValue(report, now), "5h 80% (59s) · 7d 65% (7d)");
   assert.equal(nextResetCountdownDelayMs(report, now), 251);
 });
 

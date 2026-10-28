@@ -39,19 +39,7 @@ export function formatCodexUsageStatusline(
 ): string {
   const value = formatCodexUsageStatusValue(report, model);
   if (!value) return formatStatuslineText(ctx, "n/a", model);
-  const snapshot = selectActiveUsageSnapshot(report, model);
-  if (!snapshot?.primary || !snapshot.secondary)
-    return formatStatuslineText(ctx, value, model);
-  const [bar, countdown] = value.split(" ", 2);
-  const barText = formatStatuslineBarText(
-    ctx,
-    bar ?? "",
-    hasExhaustedQuotaWindow(report, model) ? "toolErrorBg" : "userMessageBg",
-    model,
-  );
-  return countdown
-    ? `${barText} ${ctx.ui.theme.fg("dim", countdown)}`
-    : barText;
+  return formatStatuslineText(ctx, value, model);
 }
 
 export function formatCodexUsageBar(
@@ -80,21 +68,12 @@ export function formatCodexUsageStatusValue(
       : undefined;
     return countdown ? `${percentage} ${countdown}` : percentage;
   }
-  const bar = formatDualLimitBar(snapshot.primary, snapshot.secondary);
-  if (isQuotaWindowExhausted(snapshot.primary) && snapshot.primary?.resetAt) {
-    const primaryCountdown = formatResetCountdown(
-      snapshot.primary.resetAt,
-      capturedNow,
-    );
-    const weeklyCountdown = snapshot.secondary?.resetAt
-      ? formatResetCountdown(snapshot.secondary.resetAt, capturedNow)
-      : undefined;
-    return weeklyCountdown
-      ? `${bar} ${primaryCountdown}/${weeklyCountdown}`
-      : `${bar} ${primaryCountdown}`;
-  }
-  const countdown = formatWeeklyResetCountdown(report, model, capturedNow);
-  return countdown ? `${bar} ${countdown}` : bar;
+  const describe = (label: string, window: NormalizedRateLimitWindow) => {
+    const percent = `${Math.round(remainingPercent(window))}%`;
+    const reset = window.resetAt === undefined ? "" : ` (${formatResetCountdown(window.resetAt, capturedNow)})`;
+    return `${label} ${percent}${reset}`;
+  };
+  return `${describe("5h", snapshot.primary)} · ${describe("7d", snapshot.secondary)}`;
 }
 
 function formatCreditUsage(
@@ -149,7 +128,7 @@ export function nextResetCountdownDelayMs(
   const resetTimes = [
     hasRateLimitWindow ? weeklyWindow(snapshot)?.resetAt : report.credits?.resetAt,
   ];
-  if (snapshot?.secondary && isQuotaWindowExhausted(snapshot.primary)) {
+  if (snapshot?.secondary && snapshot.primary) {
     resetTimes.push(snapshot.primary?.resetAt);
   }
   const delays = resetTimes
@@ -238,12 +217,7 @@ export function formatStatuslineLoading(
   frame: number,
   model?: CodexUsageModel,
 ): string {
-  return formatStatuslineBarText(
-    ctx,
-    formatCodexUsageLoadingBar(frame),
-    "userMessageBg",
-    model,
-  );
+  return formatStatuslineText(ctx, "loading…", model);
 }
 
 export function formatStatuslineProblem(

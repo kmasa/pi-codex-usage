@@ -68,7 +68,7 @@ test("OpenAI and Codex models share one root usage.json and use active subscript
     });
     try {
       instances.forEach(({ handlers, ctx }) => handlers.get("session_start")({}, ctx));
-      const expected = "codex ████████▀⠀";
+      const expected = "codex 5h 90% · 7d 80%";
       const deadline = Date.now() + 5000;
       while (instances.some(instance => instance.status() !== expected) && Date.now() < deadline)
         await new Promise(resolve => setTimeout(resolve, 20));
