@@ -64,13 +64,16 @@ export function formatCodexUsageStatusValue(
     if (!window) return undefined;
     const percentage = `${Math.round(remainingPercent(window))}%`;
     const countdown = window.resetAt
-      ? formatResetCountdown(window.resetAt, capturedNow)
+      ? formatResetTime(window.resetAt, true)
       : undefined;
     return countdown ? `${percentage} ${countdown}` : percentage;
   }
   const describe = (label: string, window: NormalizedRateLimitWindow) => {
     const percent = `${Math.round(remainingPercent(window))}%`;
-    const reset = window.resetAt === undefined ? "" : ` (${formatResetCountdown(window.resetAt, capturedNow)})`;
+    const resetDate = window.resetAt === undefined ? undefined : new Date(window.resetAt);
+    const today = new Date(capturedNow);
+    const differentDay = resetDate !== undefined && (resetDate.getFullYear() !== today.getFullYear() || resetDate.getMonth() !== today.getMonth() || resetDate.getDate() !== today.getDate());
+    const reset = window.resetAt === undefined ? "" : ` (${formatResetTime(window.resetAt, label === "7d" || differentDay)})`;
     return `${label} ${percent}${reset}`;
   };
   return `${describe("5h", snapshot.primary)} · ${describe("7d", snapshot.secondary)}`;
@@ -83,8 +86,16 @@ function formatCreditUsage(
   if (!credits) return undefined;
   const percentage = `${Math.round(credits.remainingPercent)}%`;
   return credits.resetAt
-    ? `${percentage} ${formatResetCountdown(credits.resetAt, now)}`
+    ? `${percentage} ${formatResetTime(credits.resetAt, true)}`
     : percentage;
+}
+
+/** Format a reset in the local timezone; weekly/credit resets include the date. */
+export function formatResetTime(resetAt: number, includeDate = false): string {
+  const date = new Date(resetAt);
+  if (!Number.isFinite(date.getTime())) return "?";
+  const time = `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return includeDate ? `${date.getMonth() + 1}/${date.getDate()} ${time}` : time;
 }
 
 export function formatWeeklyResetCountdown(

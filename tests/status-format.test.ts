@@ -13,6 +13,7 @@ import {
   nextResetCountdownDelayMs,
 } from "../lib/status-format.ts";
 
+process.env.TZ = "UTC";
 const secondMs = 1000;
 const minuteMs = 60 * secondMs;
 const hourMs = 60 * minuteMs;
@@ -77,7 +78,7 @@ test("formats a single weekly window as remaining percentage and reset", () => {
     ],
   };
 
-  assert.equal(formatCodexUsageStatusValue(report, now), "67% 7d");
+  assert.equal(formatCodexUsageStatusValue(report, now), "67% 6/4 0:00");
   assert.equal(
     formatCodexUsageStatusline(
       {
@@ -289,7 +290,7 @@ test("uses the subdued bar background while keeping the countdown outside it", (
         },
         testCtx,
       ),
-      "<fg:accent>codex</fg> <fg:dim>5h 100% · 7d 100% (6d)</fg>",
+      "<fg:accent>codex</fg> <fg:dim>5h 100% · 7d 100% (6/3 0:00)</fg>",
     );
   } finally {
     Date.now = originalDateNow;
@@ -314,7 +315,7 @@ test("uses an error background when either quota window is exhausted", () => {
         },
         testCtx,
       ),
-      "<fg:accent>codex</fg> <fg:dim>5h 0% (5h) · 7d 50% (7d)</fg>",
+      "<fg:accent>codex</fg> <fg:dim>5h 0% (5:00) · 7d 50% (6/4 0:00)</fg>",
     );
 
     assert.equal(
@@ -330,7 +331,7 @@ test("uses an error background when either quota window is exhausted", () => {
         },
         testCtx,
       ),
-      "<fg:accent>codex</fg> <fg:dim>5h 50% · 7d 0% (7d)</fg>",
+      "<fg:accent>codex</fg> <fg:dim>5h 50% · 7d 0% (6/4 0:00)</fg>",
     );
   } finally {
     Date.now = originalDateNow;
@@ -385,7 +386,7 @@ test("formats reusable compact Codex status values", () => {
       },
       now,
     ),
-    "5h 50% · 7d 0% (23h)",
+    "5h 50% · 7d 0% (5/28 23:00)",
   );
 });
 
@@ -404,7 +405,7 @@ test("formats exhausted primary windows with the full dual bar", () => {
       },
       now,
     ),
-    "5h 0% (5h) · 7d 50% (7d)",
+    "5h 0% (5:00) · 7d 50% (6/4 0:00)",
   );
 
   assert.equal(
@@ -420,7 +421,7 @@ test("formats exhausted primary windows with the full dual bar", () => {
       },
       now,
     ),
-    "5h 0% · 7d 50% (7d)",
+    "5h 0% · 7d 50% (6/4 0:00)",
   );
 });
 
@@ -431,14 +432,20 @@ test("uses the exhausted countdown and redraw boundary for rounded zero percent"
     primary: { usedPercent: 99.9, resetAt: now + 59 * secondMs + 250 },
     secondary: { usedPercent: 50, resetAt: now + 7 * dayMs },
   }] };
-  assert.equal(formatCodexUsageStatusValue(report, now), "5h 0% (59s) · 7d 50% (7d)");
+  assert.equal(formatCodexUsageStatusValue(report, now), "5h 0% (0:00) · 7d 50% (6/4 0:00)");
   assert.equal(nextResetCountdownDelayMs(report, now), 251);
+});
+
+test("includes a date for a 5-hour reset on the next local day", () => {
+  const now = Date.parse("2026-05-28T23:00:00Z");
+  const report = { snapshots: [{ limitId: "codex", primary: { usedPercent: 20, resetAt: now + 2 * hourMs }, secondary: { usedPercent: 35, resetAt: now + 7 * dayMs } }] };
+  assert.equal(formatCodexUsageStatusValue(report, now), "5h 80% (5/29 1:00) · 7d 65% (6/4 23:00)");
 });
 
 test("schedules both countdowns even when the 5-hour window is not exhausted", () => {
   const now = Date.parse("2026-05-28T00:00:00.000Z");
   const report = { snapshots: [{ limitId: "codex", primary: { usedPercent: 20, resetAt: now + 59 * secondMs + 250 }, secondary: { usedPercent: 35, resetAt: now + 7 * dayMs } }] };
-  assert.equal(formatCodexUsageStatusValue(report, now), "5h 80% (59s) · 7d 65% (7d)");
+  assert.equal(formatCodexUsageStatusValue(report, now), "5h 80% (0:00) · 7d 65% (6/4 0:00)");
   assert.equal(nextResetCountdownDelayMs(report, now), 251);
 });
 

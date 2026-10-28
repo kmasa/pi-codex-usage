@@ -16,9 +16,9 @@ This repository is a minimal fork of [`narumiruna/pi-extensions/extensions/pi-co
 
 ## Features
 
-- Shows `loading…` while Codex usage is loading, then keeps the percentages fresh (countdowns tick locally)
+- Shows `loading…` while Codex usage is loading, then keeps the percentages fresh
 - Keeps the last usable usage visible during ordinary refreshes instead of replacing known quota with a loading state
-- Statusline output adapts to the response: weekly-only limits show a remaining percentage and reset countdown, while dual-window limits show both 5-hour and weekly percentages and countdowns
+- Statusline output adapts to the response: weekly-only limits show a remaining percentage and reset time, while dual-window limits show both 5-hour and weekly percentages and reset times
 - Models under either `openai-codex` or `openai` show the same primary Codex subscription quota and `codex` status label (not OpenAI API billing limits)
 - When `pi-telegram` is available, the same compact value appears as `codex: <value>` in the `/start` menu status text for either supported provider
 - Additional returned quota buckets are ignored
@@ -66,10 +66,10 @@ When this and Claude Usage are loaded, their shared library registers **one** `/
 Enabled native requests receive `service_tier: "priority"` only when the payload matches the current model and has no existing tier. The existing **terminal** status redraws immediately without fetching quota, for example:
 
 ```text
-codex 5h 80% (2h) · 7d 65% (6d) fast
+codex 5h 80% (9:30) · 7d 65% (11/3 9:30) fast
 ```
 
-The lowercase ` fast` suffix uses the existing dim/countdown theme role and is applied at the final terminal boundary, including loading, percentages/credits, `n/a`, and errors. Telegram also appends plain-text ` fast` for the active model; quota polling/auth/leadership are unchanged.
+The lowercase ` fast` suffix uses the existing dim/reset time theme role and is applied at the final terminal boundary, including loading, percentages/credits, `n/a`, and errors. Telegram also appends plain-text ` fast` for the active model; quota polling/auth/leadership are unchanged.
 
 A `before_provider_request` adapter adds the tier to eligible requests; no replacement provider or transport is registered. Its public command API cannot hide/unregister commands by current model, so `/fast` stays listed and checks the provider at invocation. Backend capability and actual priority service are not guaranteed by the toggle or suffix: an earlier authorized sample sent `priority` but received `default`. Priority service may have different provider pricing.
 
@@ -78,21 +78,21 @@ A `before_provider_request` adapter adds the tier to eligible requests; no repla
 Regular Codex usage:
 
 ```text
-codex 5h 80% (2h) · 7d 65% (6d)
+codex 5h 80% (9:30) · 7d 65% (11/3 9:30)
 ```
 
-When OpenAI returns only the weekly window, the status shows the exact rounded remaining percentage and reset countdown directly:
+When OpenAI returns only the weekly window, the status shows the exact rounded remaining percentage and reset time directly:
 
 ```text
-codex 67% 7d
+codex 67% 11/3 9:30
 ```
 
-When both windows exist, the status shows the rounded remaining percentage for each window, with its reset countdown in parentheses when available. The last usable result remains visible during refresh. Countdown labels update locally, and show `0s` after a reset until refreshed data arrives.
+When both windows exist, the status shows the rounded remaining percentage for each window, with its reset time in parentheses when available. The times use the local timezone. The 5-hour reset includes a date when it falls on another day; weekly resets always include a date. The last usable result remains visible during refresh.
 
-Business accounts that return credits instead of Codex rate-limit windows show the rounded remaining percentage. When the response includes a credit reset cycle, its countdown is shown after the percentage:
+Business accounts that return credits instead of Codex rate-limit windows show the rounded remaining percentage. When the response includes a credit reset cycle, its reset time is shown after the percentage:
 
 ```text
-codex 81% 2.8d
+codex 81% 11/3 9:30
 ```
 
 Unavailable because Codex auth or subscription quota is not available:
@@ -132,10 +132,10 @@ Coordination assumes a local filesystem and cooperating instances on the same ma
 If `@llblab/pi-telegram` is loaded with the public status-line provider API, this extension registers an optional `/start` menu status row. The row is shown only while the active model uses `openai-codex` or `openai`:
 
 ```text
-codex: 5h 80% (2h) · 7d 65% (6d)
+codex: 5h 80% (9:30) · 7d 65% (11/3 9:30)
 ```
 
-The value is the same remaining percentages and reset countdowns used by the terminal statusline, always with the `codex` label. When Fast is enabled for the active model, it appends plain-text ` fast`; without a usable quota report it shows `codex: fast`. The in-memory state is read when the menu is rendered, so toggles and model changes do not depend on a quota refresh. If `pi-telegram` is absent, older, or the active model uses another provider, no Telegram row is added.
+The value is the same remaining percentages and reset times used by the terminal statusline, always with the `codex` label. When Fast is enabled for the active model, it appends plain-text ` fast`; without a usable quota report it shows `codex: fast`. The in-memory state is read when the menu is rendered, so toggles and model changes do not depend on a quota refresh. If `pi-telegram` is absent, older, or the active model uses another provider, no Telegram row is added.
 
 ## Auth
 

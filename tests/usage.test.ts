@@ -62,7 +62,7 @@ test("normalizes credits-only backend usage", () => {
       resetAt: capturedAt + hourMs,
     },
   });
-  assert.equal(formatCodexUsageStatusValue(report, capturedAt), "75% 1h");
+  assert.equal(formatCodexUsageStatusValue(report, capturedAt), `75% ${new Date(capturedAt + hourMs).getMonth() + 1}/${new Date(capturedAt + hourMs).getDate()} ${new Date(capturedAt + hourMs).getHours()}:${String(new Date(capturedAt + hourMs).getMinutes()).padStart(2, "0")}`);
   assert.equal(nextResetCountdownDelayMs(report, capturedAt), 1);
   assert.equal(canReuseCachedReport(report, codexModel), true);
 });
