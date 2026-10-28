@@ -59,23 +59,7 @@ For explicitly local library experiments, a temporary folder link reads the libr
 
 ## Fast mode
 
-`/fast` takes no arguments and dispatches by the current **provider**, not model names or OAuth eligibility. For any `openai-codex` or `openai` model, it stores only `serviceTier: "priority"` in Pi's canonical `models.json` (honoring `PI_CODING_AGENT_DIR`):
-
-```json
-{
-  "providers": {
-    "openai-codex": {
-      "modelOverrides": {
-        "your-current-model": { "serviceTier": "priority" }
-      }
-    }
-  }
-}
-```
-
-For an `openai` model, the same override goes under `providers.openai.modelOverrides`. Preferences are isolated by provider and model ID, so identical IDs in the two providers do not share Fast state.
-
-OFF removes only `serviceTier`; it never writes `"default"`. JSONC comments and unrelated configuration survive. There is no separate Fast config or model allowlist. State follows provider/model selection and survives restart; manual edits are read on lifecycle refresh and each request.
+`/fast` toggles Fast for the current OpenAI or OpenAI Codex model, including `openai/gpt-6.1-terra`. State is kept in memory per provider and model and starts OFF on every session, restart, or reload. This fork does not read or write Fast preferences in `models.json`. Existing explicitly configured service tiers are not overridden.
 
 When this and Claude Usage are loaded, their shared library registers **one** `/fast`, in either load order, even with separate physical dependency copies. A session-scoped WeakMap avoids cross-session dispatch; shutdown releases registrations for reload (Pi retains the session manager). Unrelated providers receive a concise unsupported-provider message. Invalid arguments show `Usage: /fast`; success is silent.
 
@@ -87,7 +71,7 @@ codex ██████▀▀▀▀ 6d fast
 
 The lowercase ` fast` suffix uses the existing dim/countdown theme role and is applied at the final terminal boundary, including loading, percentages/credits, `n/a`, and errors. Telegram also appends plain-text ` fast` for the active model; quota polling/auth/leadership are unchanged.
 
-Pi 1.0.0 accepts the extra override but does not propagate it to native request options, so a small `before_provider_request` adapter remains necessary; no replacement provider or transport is registered. Its public command API cannot hide/unregister commands by current model, so `/fast` stays listed and checks the provider at invocation. Backend capability and actual priority service are not guaranteed by a stored preference or suffix: an earlier authorized sample sent `priority` but received `default`. Priority service may have different provider pricing.
+A `before_provider_request` adapter adds the tier to eligible requests; no replacement provider or transport is registered. Its public command API cannot hide/unregister commands by current model, so `/fast` stays listed and checks the provider at invocation. Backend capability and actual priority service are not guaranteed by the toggle or suffix: an earlier authorized sample sent `priority` but received `default`. Priority service may have different provider pricing.
 
 ## Statusline
 
@@ -163,7 +147,7 @@ If `@llblab/pi-telegram` is loaded with the public status-line provider API, thi
 codex: ██████▀▀▀▀ 6d
 ```
 
-The value is the same compact quota bar plus weekly reset countdown used by the terminal statusline, always with the `codex` label. When Fast is enabled for the active model, it appends plain-text ` fast`; without a usable quota report it shows `codex: fast`. The preference is reread when the menu is rendered, so toggles and model changes do not depend on a quota refresh. If `pi-telegram` is absent, older, or the active model uses another provider, no Telegram row is added.
+The value is the same compact quota bar plus weekly reset countdown used by the terminal statusline, always with the `codex` label. When Fast is enabled for the active model, it appends plain-text ` fast`; without a usable quota report it shows `codex: fast`. The in-memory state is read when the menu is rendered, so toggles and model changes do not depend on a quota refresh. If `pi-telegram` is absent, older, or the active model uses another provider, no Telegram row is added.
 
 ## Auth
 

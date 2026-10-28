@@ -1,7 +1,7 @@
 /** Domain: status lifecycle. Owns: local refresh, terminal redraw and optional Telegram row. Excludes: /fast command and request hook. */
 import { join } from "node:path";
 import { type ExtensionAPI, type ExtensionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
-import { isFastEnabled, isFastEligibleModel } from "./fast.ts";
+import { isFastEligibleModel } from "./fast.ts";
 import { claimRefresh, isRefreshDue, nextRefreshAt, ownsRefreshClaim, publishRefresh, readState, type SharedState, MIN_ATTEMPT_GAP_MS } from "./usage-store.ts";
 import { canReuseCachedReport, isFullyAvailableReport, isOpenAICodexModel, isUsageUnavailable, type CodexUsageModel, type CodexUsageReport } from "./usage.ts";
 import { appendFastStatus, formatReportBar, formatStatuslineLoading, formatStatuslineProblem, formatCodexUsageStatusline, nextResetCountdownDelayMs } from "./status-format.ts";
@@ -27,7 +27,7 @@ type TimeoutHandle = ReturnType<typeof setTimeout> & { unref?: () => void };
 type PiModel = NonNullable<ExtensionContext["model"]>;
 type CodexSharedState = SharedState<CodexUsageReport>;
 
-export function createCodexUsageStatus(pi: ExtensionAPI) {
+export function createCodexUsageStatus(pi: ExtensionAPI, isFastEnabled: (model: { provider: string; id: string }) => boolean = () => false) {
   const instanceId = `${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
   const stateDir = join(getAgentDir(), "tmp", "pi-codex-usage");
   let lastAttemptAt = 0;
@@ -63,7 +63,7 @@ export function createCodexUsageStatus(pi: ExtensionAPI) {
   const ensureTelegramStatusLineRegistered = () => {
     if (unregisterTelegramStatusLine || telegramStatusLineRegistration) return;
     telegramStatusLineRegistration = registerCodexUsageTelegramStatusLine(
-      ({ activeModel }) => codexUsageTelegramStatusLine(shown.report, activeModel),
+      ({ activeModel }) => codexUsageTelegramStatusLine(shown.report, activeModel, isFastEnabled),
     )
       .then((unregister) => {
         unregisterTelegramStatusLine = unregister;

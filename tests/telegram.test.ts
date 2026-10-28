@@ -16,23 +16,15 @@ for (const provider of ["openai-codex", "openai"]) test(`${provider}: Telegram r
       const { codexUsageTelegramStatusLine: row } = await import(${JSON.stringify(new URL("../lib/telegram.ts", import.meta.url).href)});
       const model = { provider: ${JSON.stringify(provider)}, id: "gpt-5.4", name: "GPT" };
       const report = { snapshots: [{ limitId: "codex", secondary: { usedPercent: 25 } }] };
-      const path = join(process.env.PI_CODING_AGENT_DIR, "models.json");
-      const set = enabled => writeFileSync(path, JSON.stringify({ providers: { [model.provider]: { modelOverrides: { "gpt-5.4": enabled ? { serviceTier: "priority" } : {} } } } }));
-      set(false);
       const plain = row(report, model);
       assert.ok(plain);
       assert.equal(row(undefined, model), undefined);
-      set(true);
-      assert.deepEqual(row(report, model), { ...plain, value: plain.value + " fast" });
-      assert.deepEqual(row(undefined, model), { label: "codex", value: "fast" });
-      assert.equal(row(report, { ...model, id: "other" }).value, plain.value);
-      assert.deepEqual(row(report, { ...model, provider: model.provider === "openai" ? "openai-codex" : "openai" }), plain);
+      const enabled = candidate => candidate.provider === model.provider && candidate.id === model.id;
+      assert.deepEqual(row(report, model, enabled), { ...plain, value: plain.value + " fast" });
+      assert.deepEqual(row(undefined, model, enabled), { label: "codex", value: "fast" });
+      assert.equal(row(report, { ...model, id: "other" }, enabled).value, plain.value);
       assert.equal(row(report, { ...model, provider: "anthropic" }), undefined);
       assert.equal(row(report, undefined), undefined);
-      set(false);
-      assert.deepEqual(row(report, model), plain);
-      writeFileSync(path, "invalid json");
-      assert.deepEqual(row(report, model), plain);
     `], { env: { ...process.env, PI_CODING_AGENT_DIR: dir }, timeout: 15_000 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
